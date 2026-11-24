@@ -1,15 +1,14 @@
-name: CI
+name: Windows contribution checks
 
 on:
-  pull_request:
   push:
-    branches: [main]
+    branches: [ci/verify-nov24-contributions]
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.sha }}
   cancel-in-progress: true
 
 env:
@@ -17,10 +16,23 @@ env:
 
 jobs:
   check:
+    name: ${{ matrix.change }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - change: MTBUF conversion
+            revision: a291bc609819104e2de6a7a02e0239c68cf5e7bb
+          - change: Packed texture layout
+            revision: 6397c0671e12632dd3c982880253a64ec13db79c
+          - change: Shader hash replay
+            revision: f8259a9311915651416f7b1083b7d3762b3ae09c
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ matrix.revision }}
       # The version and components pinned in rust-toolchain.toml.
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
