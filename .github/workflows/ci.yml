@@ -1,9 +1,8 @@
-name: CI
+name: Streaming and input checks
 
 on:
-  pull_request:
   push:
-    branches: [main]
+    branches: [ci/verify-187-1063]
 
 permissions:
   contents: read
@@ -17,10 +16,21 @@ env:
 
 jobs:
   check:
+    name: ${{ matrix.change }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - change: Streaming diagnostics
+            revision: 9d357e862365ebf9fa099388e90d6fb7b06a052e
+          - change: Controller diagram
+            revision: ad06b859615bfa34b13f721a878c84a49e1da7ea
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ matrix.revision }}
       # The version and components pinned in rust-toolchain.toml.
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
@@ -31,3 +41,14 @@ jobs:
       # Includes xtask's repository_passes_policy, the asset-policy check.
       - name: Tests
         run: cargo test --workspace --locked
+      - name: DirectStorage tests in diagnostics mode
+        run: cargo test --locked -p victory-hle --features diagnostics modules::dstorage
+      - name: Build streaming diagnostics for the reporter
+        if: matrix.change == 'Streaming diagnostics'
+        run: cargo build --locked --profile diag -p victory --features diagnostics
+      - uses: actions/upload-artifact@v4
+        if: matrix.change == 'Streaming diagnostics'
+        with:
+          name: victory-streaming-diag-windows-x64
+          path: target/diag/victory.exe
+          if-no-files-found: error
