@@ -24,9 +24,9 @@ jobs:
           - change: MTBUF conversion
             revision: a291bc609819104e2de6a7a02e0239c68cf5e7bb
           - change: Packed texture layout
-            revision: 6397c0671e12632dd3c982880253a64ec13db79c
+            revision: 87c7892ca3312018195d316e7a155cf291efdbca
           - change: Shader hash replay
-            revision: f8259a9311915651416f7b1083b7d3762b3ae09c
+            revision: 651cc2ac1a3563bc691f5a782b3b5434647f97f9
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
