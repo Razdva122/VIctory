@@ -44,16 +44,16 @@ jobs:
           file = pathlib.Path(path)
           marker = '#[cfg(test)]' + chr(10) + 'mod tests'
           old_impl, separator, _ = old.partition(marker)
-          _, separator_new, tests = file.read_text().partition(marker)
+          _, separator_new, tests = file.read_text(encoding='utf-8').partition(marker)
           assert separator and separator_new
-          file.write_text(old_impl + marker + tests)
+          file.write_text(old_impl + marker + tests, encoding='utf-8')
       - name: Verify that the old implementation fails the overlap regression
         shell: pwsh
         run: |
           cargo test --locked -p victory-hle gpu_page_copies_keep_the_source_mappings -- --nocapture *> old-mappings.txt
           $result = $LASTEXITCODE
           Get-Content old-mappings.txt | Select-Object -Last 35
-          if ($result -eq 0 -or !(Select-String -Quiet -Path old-mappings.txt -Pattern 'assertion failed: copy')) {
+          if ($result -eq 0 -or !(Select-String -Quiet -Path old-mappings.txt -SimpleMatch -Pattern 'assertion failed: copy(1, 0, 4)', 'right: [1, 1, 2, 3, 4]')) {
             throw 'Expected the previous map_alias to fail the overlapping copy assertion'
           }
           exit 0
