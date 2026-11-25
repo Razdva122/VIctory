@@ -1,15 +1,14 @@
-name: CI
+name: Contribution verification
 
 on:
-  pull_request:
   push:
-    branches: [main]
+    branches: [ci/verify-nov25-tasks]
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.sha }}
   cancel-in-progress: true
 
 env:
@@ -17,10 +16,14 @@ env:
 
 jobs:
   check:
+    name: Unsigned conversion b21594a
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: b21594a44e8f483460e70e9c9014e55870d78884
+          fetch-depth: 2
       # The version and components pinned in rust-toolchain.toml.
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
@@ -31,3 +34,16 @@ jobs:
       # Includes xtask's repository_passes_policy, the asset-policy check.
       - name: Tests
         run: cargo test --workspace --locked
+
+      - name: Measure conversion probes with the previous lowering
+        shell: pwsh
+        run: |
+          git restore --source=HEAD^ -- crates/victory-shader/src/emit/lower.rs
+          cargo test --locked -p victory-shader conversions_match_the_hardware -- --nocapture *> baseline.txt
+          $result = $LASTEXITCODE
+          Get-Content baseline.txt | Select-Object -Last 40
+          if ($result -ne 0 -and !(Select-String -Quiet -Path baseline.txt -Pattern 'v_cvt_f32_u32')) {
+            throw 'Baseline failed without identifying the unsigned conversion'
+          }
+          Write-Host "Previous lowering probe exit status: $result"
+          exit 0
