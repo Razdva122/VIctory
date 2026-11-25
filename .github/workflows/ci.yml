@@ -16,13 +16,13 @@ env:
 
 jobs:
   check:
-    name: Windows scorecard 03e8548
+    name: GPU and formats 365a2a4
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: 03e854856be341dc0ac195f3c80da2c5c46a764f
+          ref: 365a2a491ffde3629b57cceb3855e34565baa5ae
           fetch-depth: 2
       # The version and components pinned in rust-toolchain.toml.
       - run: rustup toolchain install
@@ -34,5 +34,26 @@ jobs:
       # Includes xtask's repository_passes_policy, the asset-policy check.
       - name: Tests
         run: cargo test --workspace --locked
-      - name: Windows benchmark integration tests
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests/bench.ps1
+
+      - name: Combine the old mapping code with the new regression
+        shell: python
+        run: |
+          import pathlib, subprocess
+          path = 'crates/victory-hle/src/modules/xmem.rs'
+          old = subprocess.check_output(['git', 'show', 'HEAD^:' + path]).decode()
+          file = pathlib.Path(path)
+          marker = '#[cfg(test)]' + chr(10) + 'mod tests'
+          old_impl, separator, _ = old.partition(marker)
+          _, separator_new, tests = file.read_text().partition(marker)
+          assert separator and separator_new
+          file.write_text(old_impl + marker + tests)
+      - name: Verify that the old implementation fails the overlap regression
+        shell: pwsh
+        run: |
+          cargo test --locked -p victory-hle gpu_page_copies_keep_the_source_mappings -- --nocapture *> old-mappings.txt
+          $result = $LASTEXITCODE
+          Get-Content old-mappings.txt | Select-Object -Last 35
+          if ($result -eq 0 -or !(Select-String -Quiet -Path old-mappings.txt -Pattern 'assertion failed: copy')) {
+            throw 'Expected the previous map_alias to fail the overlapping copy assertion'
+          }
+          exit 0
