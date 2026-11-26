@@ -16,14 +16,13 @@ env:
 
 jobs:
   check:
-    name: GPU and formats 365a2a4
+    name: Windows benchmark f20593f
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: 365a2a491ffde3629b57cceb3855e34565baa5ae
-          fetch-depth: 2
+          ref: f20593fb262e3d31dc18928f89ba39c0b868eefd
       # The version and components pinned in rust-toolchain.toml.
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
@@ -35,25 +34,12 @@ jobs:
       - name: Tests
         run: cargo test --workspace --locked
 
-      - name: Combine the old mapping code with the new regression
-        shell: python
-        run: |
-          import pathlib, subprocess
-          path = 'crates/victory-hle/src/modules/xmem.rs'
-          old = subprocess.check_output(['git', 'show', 'HEAD^:' + path]).decode()
-          file = pathlib.Path(path)
-          marker = '#[cfg(test)]' + chr(10) + 'mod tests'
-          old_impl, separator, _ = old.partition(marker)
-          _, separator_new, tests = file.read_text(encoding='utf-8').partition(marker)
-          assert separator and separator_new
-          file.write_text(old_impl + marker + tests, encoding='utf-8')
-      - name: Verify that the old implementation fails the overlap regression
+      - name: Time benchmark self-tests with build cache warm
         shell: pwsh
         run: |
-          cargo test --locked -p victory-hle gpu_page_copies_keep_the_source_mappings -- --nocapture *> old-mappings.txt
-          $result = $LASTEXITCODE
-          Get-Content old-mappings.txt | Select-Object -Last 35
-          if ($result -eq 0 -or !(Select-String -Quiet -Path old-mappings.txt -SimpleMatch -Pattern 'assertion failed: copy(1, 0, 4)', 'right: [1, 1, 2, 3, 4]')) {
-            throw 'Expected the previous map_alias to fail the overlapping copy assertion'
-          }
-          exit 0
+          $clock = [Diagnostics.Stopwatch]::StartNew()
+          cargo test --locked -p xtask bench:: -- --test-threads=1 --nocapture
+          $code = $LASTEXITCODE
+          $clock.Stop()
+          Write-Host "Benchmark self-tests including cargo startup took $($clock.ElapsedMilliseconds) ms"
+          exit $code
