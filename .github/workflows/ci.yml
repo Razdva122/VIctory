@@ -22,9 +22,9 @@ jobs:
       matrix:
         include:
           - change: Streaming diagnostics
-            revision: f475df13ac2f5f2e11babe34ae4e67b19f9a3b78
+            revision: 40dac069cbf5a9be222ee18b66152188d6747200
           - change: Controller diagram
-            revision: 351a9fd7391f1b4fa4126287b1e006c9a2aab492
+            revision: ccd207f7d1b4680bd9f4ac0d57157c64ba3ef704
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
