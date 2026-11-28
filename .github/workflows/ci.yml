@@ -16,24 +16,18 @@ env:
 
 jobs:
   check:
-    name: Windows benchmark f20593f
+    name: Benchmark timing at 48f115c
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: f20593fb262e3d31dc18928f89ba39c0b868eefd
+          ref: 48f115c4ab3665ef784115816bee9c10f977a4aa
       # The version and components pinned in rust-toolchain.toml.
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      - name: Clippy, diagnostics build
-        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-      # Includes xtask's repository_passes_policy, the asset-policy check.
-      - name: Tests
-        run: cargo test --workspace --locked
-
+      - name: Compile benchmark tests
+        run: cargo test --locked -p xtask --no-run
       - name: Time benchmark self-tests with build cache warm
         shell: pwsh
         run: |
@@ -43,3 +37,18 @@ jobs:
           $clock.Stop()
           Write-Host "Benchmark self-tests including cargo startup took $($clock.ElapsedMilliseconds) ms"
           exit $code
+
+  controller:
+    name: Controller diagram in diagnostics mode at 8a485ee
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 8a485ee441c087f2ba1fe6fddb9be40e9f7662b8
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - name: Run diagram and DirectStorage tests
+        run: |
+          cargo test --locked -p victory-hle --features diagnostics modules::files::diagram
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --locked -p victory-hle --features diagnostics modules::dstorage
